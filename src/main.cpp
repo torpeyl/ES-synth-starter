@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <U8g2lib.h>
+#include <bitset>
 
 //Constants
   const uint32_t interval = 100; //Display update interval
@@ -47,6 +48,23 @@ void setOutMuxBit(const uint8_t bitIdx, const bool value) {
       digitalWrite(REN_PIN,LOW);
 }
 
+std::bitset<4> readCols(){
+  std::bitset<4> result;
+  result[0] = digitalRead(C0_PIN);
+  result[1] = digitalRead(C1_PIN);
+  result[2] = digitalRead(C2_PIN);
+  result[3] = digitalRead(C3_PIN);
+  return result;
+}
+
+void setRow(uint8_t rowIdx){
+  digitalWrite(REN_PIN, LOW);
+  digitalWrite(RA0_PIN, rowIdx & 0x01);
+  digitalWrite(RA1_PIN, rowIdx & 0x02);
+  digitalWrite(RA2_PIN, rowIdx & 0x04);
+  digitalWrite(REN_PIN, HIGH);
+}
+
 void setup() {
   // put your setup code here, to run once:
 
@@ -84,6 +102,18 @@ void loop() {
   static uint32_t next = millis();
   static uint32_t count = 0;
 
+  std::bitset<32> inputs;
+
+  for(uint8_t i = 0; i <= 2; i++){
+    setRow(i);
+    delayMicroseconds(3);
+    std::bitset<4> result = readCols(); 
+    inputs[(i * 4)] = result[0];
+    inputs[(i * 4) + 1] = result[1];
+    inputs[(i * 4) + 2] = result[2];
+    inputs[(i * 4) + 3] = result[3];
+  }
+
   while (millis() < next);  //Wait for next interval
 
   next += interval;
@@ -94,6 +124,8 @@ void loop() {
   u8g2.drawStr(2,10,"Helllo World!");  // write something to the internal memory
   u8g2.setCursor(2,20);
   u8g2.print(count++);
+  u8g2.setCursor(2,30);
+  u8g2.print(inputs.to_ulong(),HEX);
   u8g2.sendBuffer();          // transfer internal memory to the display
 
   //Toggle LED
